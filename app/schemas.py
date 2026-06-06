@@ -4,13 +4,13 @@ from pydantic import BaseModel, Field
 
 class TeamID(IntEnum):
     """Identificador do time."""
-    TURING = 1       # professores CLARO e REY
-    LOVELACE = 2     # professoras KARIN e BEATRIZ
+    TURING = 1
+    LOVELACE = 2
 
 class TurnPhase(str, Enum):
     """Fase do turno."""
-    SETUP = "setup_placement"        # posicionamento inicial
-    PLAYER_TURN = "player_turn"      # turno de jogo
+    SETUP = "setup_placement"
+    PLAYER_TURN = "player_turn"
     
 # ── Celula do tabuleiro ────────────────────────────────
 
@@ -34,7 +34,7 @@ class Position(BaseModel):
 
 class AITurnRequest(BaseModel):
   """
-  Payload que foi enviado pelo orquestrador de partidas.
+  Definição de todos os dados vindos da API do jogo
   """
   game_id: str
   turn_number: int
@@ -55,8 +55,28 @@ class PlayerTurnResponse(BaseModel):
     - professor: qual professor mover (ex: "CLARO")
     - move_to: para qual casa mover
     - mentor_at: qual casa adjacente ao destino recebe mentoria (+1 nivel).
-                 Pode ser omitido APENAS em jogada de vitoria (destino nivel 3).
+                Pode ser omitido APENAS em jogada de vitoria (destino nivel 3).
     """
+    professor: str
+    move_to: Position
+    mentor_at: Optional[Position] = None
+
+# ── Estruturas para o MinMax ───────────────────────────────
+
+class GameState(BaseModel):
+    """
+    Estado completo do jogo utilizado pelo Minimax.
+    """
+
+    board: List[List[Cell]]
+    current_player: TeamID
+    turn_number: int
+
+class Move(BaseModel):
+    """
+    Representa uma jogada possível.
+    """
+
     professor: str
     move_to: Position
     mentor_at: Optional[Position] = None
