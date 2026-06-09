@@ -64,13 +64,12 @@ class PlayerTurnResponse(BaseModel):
 # ── Estruturas para o MinMax ───────────────────────────────
 
 class GameState(BaseModel):
-    """
-    Estado completo do jogo utilizado pelo Minimax.
-    """
 
     board: List[List[Cell]]
     current_player: TeamID
-    turn_number: int
+    root_player: TeamID
+
+    winner: Optional[TeamID] = None
 
 class Move(BaseModel):
     """

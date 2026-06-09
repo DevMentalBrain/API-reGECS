@@ -26,6 +26,6 @@ async def move(body: AITurnRequest):
   """
   await asyncio.sleep(random.choice([1.0, 1.5, 2, 2.5, 3]))
   if body.turn_phase == TurnPhase.SETUP:
-    return choose_setup(body.board)
+    return choose_setup(body.board, body.professor_to_place)
   else:
     return choose_turn(body.board, int(body.your_team))
