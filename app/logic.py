@@ -7,7 +7,12 @@ TEAM_PROFESSORS = {
     TeamID.LOVELACE: ["KARIN", "BEATRIZ"]
 }
 
-#Função que procura os professores e ve onde eles estão no tabuleiro
+DIRECTIONS = (
+    (-1, -1), (-1, 0), (-1, 1),
+    (0, -1),           (0, 1),
+    (1, -1),  (1, 0),  (1, 1)
+)
+
 def get_my_professors(state):
 
     professors = []
@@ -33,39 +38,29 @@ def get_my_professors(state):
 
     return professors
 
-#Função que valida os proximos passos possiveis do professor
 def get_valid_moves_for_professor(state, row, col):
 
     valid_moves = []
+    board = state.board
 
-    current_level = state.board[row][col].level
+    current_level = board[row][col].level
 
-    directions = [
-        (-1, -1), (-1, 0), (-1, 1),
-        ( 0, -1),          ( 0, 1),
-        ( 1, -1), ( 1, 0), ( 1, 1)
-    ]
-
-    for dr, dc in directions:
+    for dr, dc in DIRECTIONS:
 
         new_row = row + dr
         new_col = col + dc
 
-        # fora do tabuleiro
         if not (0 <= new_row < 5 and 0 <= new_col < 5):
             continue
 
-        cell = state.board[new_row][new_col]
+        cell = board[new_row][new_col]
 
-        # não pode entrar em graduado
         if cell.level == 4:
             continue
 
-        # não pode entrar em casa ocupada
         if cell.professor is not None:
             continue
 
-        # pode subir no máximo 1 nível
         if cell.level > current_level + 1:
             continue
 
@@ -78,18 +73,12 @@ def get_valid_moves_for_professor(state, row, col):
 
     return valid_moves
 
-#Função que valida qual o aluno que o professor pode subir de ano
-def get_valid_mentors(state, row, col):
+def get_valid_mentors(state, row, col, origin_row=None, origin_col=None):
 
     mentors = []
+    board = state.board
 
-    directions = [
-        (-1, -1), (-1, 0), (-1, 1),
-        ( 0, -1),          ( 0, 1),
-        ( 1, -1), ( 1, 0), ( 1, 1)
-    ]
-
-    for dr, dc in directions:
+    for dr, dc in DIRECTIONS:
 
         mentor_row = row + dr
         mentor_col = col + dc
@@ -97,13 +86,17 @@ def get_valid_mentors(state, row, col):
         if not (0 <= mentor_row < 5 and 0 <= mentor_col < 5):
             continue
 
-        cell = state.board[mentor_row][mentor_col]
+        cell = board[mentor_row][mentor_col]
 
-        # Não pode ter professor
         if cell.professor is not None:
-            continue
+            if (
+                mentor_row == origin_row
+                and mentor_col == origin_col
+            ):
+                pass
+            else:
+                continue
 
-        # Não pode ser graduado
         if cell.level == 4:
             continue
 
@@ -116,7 +109,6 @@ def get_valid_mentors(state, row, col):
 
     return mentors
 
-#Função para ter todos os movimentos possiveis do professor
 def generate_moves(state):
 
     moves = []
@@ -136,7 +128,9 @@ def generate_moves(state):
             mentors = get_valid_mentors(
                 state,
                 position.row,
-                position.col
+                position.col,
+                professor["row"],
+                professor["col"]
             )
 
             for mentor in mentors:
@@ -151,24 +145,32 @@ def generate_moves(state):
 
     return moves
 
-#Proximo movimento do professor, contendo para onde ele foi e qual aluno subiu
 def apply_move(state, move):
 
-    new_state = deepcopy(state)
+    new_board = [
+        [cell.model_copy(deep=True) for cell in row]
+        for row in state.board
+    ]
+
+    new_state = GameState(
+        board=new_board,
+        current_player=state.current_player,
+        root_player=state.root_player,
+        winner=state.winner
+    )
 
     professor_row = None
     professor_col = None
 
-    # encontra o professor
+    board = new_state.board
+
     found = False
 
     for row in range(5):
         for col in range(5):
 
-            if (
-                new_state.board[row][col].professor
-                == move.professor
-            ):
+            if board[row][col].professor == move.professor:
+
                 professor_row = row
                 professor_col = col
                 found = True
@@ -177,30 +179,26 @@ def apply_move(state, move):
         if found:
             break
 
-    destination = new_state.board[
+    destination = board[
         move.move_to.row
     ][
         move.move_to.col
     ]
 
-    # verifica vitória ANTES da mentoria
     if destination.level == 3:
         new_state.winner = new_state.current_player
 
-    # remove da posição antiga
-    new_state.board[
+    board[
         professor_row
     ][
         professor_col
     ].professor = None
 
-    # coloca na nova posição
     destination.professor = move.professor
 
-    # só aplica mentoria se não venceu
     if new_state.winner is None:
 
-        mentor_cell = new_state.board[
+        mentor_cell = board[
             move.mentor_at.row
         ][
             move.mentor_at.col
@@ -211,68 +209,101 @@ def apply_move(state, move):
         if mentor_cell.level > 4:
             mentor_cell.level = 4
 
-    # troca jogador
     if new_state.current_player == TeamID.TURING:
         new_state.current_player = TeamID.LOVELACE
     else:
         new_state.current_player = TeamID.TURING
 
-    return new_state    
+    return new_state
 
-#Heuristica
 def evaluate(state):
 
-    # Vitória
     if state.winner == state.root_player:
-        return 10000
+        return 100000
 
-    # Derrota
     if state.winner is not None:
-        return -10000
+        return -100000
 
     score = 0
+    board = state.board
 
-    # Mobilidade
-    score += len(generate_moves(state)) * 10
+    my_professors = TEAM_PROFESSORS[state.root_player]
+
+    enemy_team = (
+        TeamID.LOVELACE
+        if state.root_player == TeamID.TURING
+        else TeamID.TURING
+    )
+
+    enemy_professors = TEAM_PROFESSORS[enemy_team]
+
+    moves = generate_moves(state)
+
+    # Mobilidade (peso baixo)
+    score += len(moves)
+
+    level3_positions = []
 
     for row in range(5):
         for col in range(5):
 
-            cell = state.board[row][col]
+            cell = board[row][col]
 
-            # Casas preparadas para vitória
             if cell.level == 3:
-                score += 100
+                score += 300
+                level3_positions.append((row, col))
 
-            # Casas quase preparadas
             elif cell.level == 2:
-                score += 25
+                score += 40
 
-            # Casas graduadas (barreiras)
             elif cell.level == 4:
-                score += 5
+                score += 10
 
-    # Verifica se existe vitória imediata
-    for move in generate_moves(state):
+    # Vitória imediata
+    for move in moves:
 
-        destination = state.board[
+        destination = board[
             move.move_to.row
         ][
             move.move_to.col
         ]
 
         if destination.level == 3:
-            score += 5000
+            score += 20000
+
+    # Distância para casas vencedoras
+    for row in range(5):
+        for col in range(5):
+
+            professor = board[row][col].professor
+
+            if professor is None:
+                continue
+
+            if not level3_positions:
+                continue
+
+            best_dist = min(
+                abs(row-r) + abs(col-c)
+                for r, c in level3_positions
+            )
+
+            if professor in my_professors:
+
+                score += (10 - best_dist) * 80
+
+            elif professor in enemy_professors:
+
+                score -= (10 - best_dist) * 80
 
     return score
 
-#Função para determinar quando parar
 def is_terminal(state, depth):
 
     if state.winner is not None:
         return True
 
-    if depth >= 3:
+    if depth >= 2:
         return True
 
     if len(generate_moves(state)) == 0:
@@ -359,17 +390,19 @@ def minimax(state, depth, alpha, beta, maximizing):
     
 def get_best_move(state):
 
+    moves = generate_moves(state)
+
+    print("MOVES:", len(moves))
+
+    if not moves:
+        return None
+
     best_move = None
     best_score = float("-inf")
 
-    moves = generate_moves(state)
-
     for move in moves:
 
-        new_state = apply_move(
-            state,
-            move
-        )
+        new_state = apply_move(state, move)
 
         score = minimax(
             new_state,
@@ -380,7 +413,6 @@ def get_best_move(state):
         )
 
         if score > best_score:
-
             best_score = score
             best_move = move
 
