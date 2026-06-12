@@ -74,7 +74,19 @@ como também implementamos uma [IA com Minimax](https://github.com/DevMentalBrai
 surpreendentemente, a IA com MCTS ganhou **todas** as vezes.
 
 Contudo, apesar das otimizações e testes, nossa IA acabou sendo derrotada durante o campeonato oficial.
+
+
 Possivelmente, isso deve ao fato de que, enquanto a nossa estratégia (mais especificamente na etapa de Rollout) se baseava puramente em jogadas aleatórias,
 o Minimax do adversário buscava o movimento considerado o pior cenário absoluto.
 Talvez, se tivéssemos utilizado uma heurística para guiar as nossas jogadas e evitar que o algoritmo gastasse processamento com caminhos ruins,
 poderíamos ter performado melhor.
+
+## Análise de Performance (MCTS vs Minimax)
+
+![Gráfico comparando as duas estratégias](./strategy-comparison.png)
+
+Ao plotar a quantidade de simulações por jogada de cada IA, observamos um cruzamento de curvas pela natureza de cada abordagem.
+
+Nas últimas jogadas do Minimax, as opções de movimento acabam e as ramificações caem para perto de zero, resolvendo a árvore de decisões rapidamente.
+
+Já o MCTS trabalha com um limite de tempo fixo, então, no fim do jogo, simular partidas aleatórias até o final é um processo extremamente barato para a CPU, pois faltam poucas jogadas. Assim, dentro do mesmo limite de tempo, o MCTS passa a iterar em um ritmo acelerado, saltando de centenas de milhares para dezenas de milhões de cálculos redundantes e até mesmo desnecessários.
