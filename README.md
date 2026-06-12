@@ -58,4 +58,4 @@ O servidor nativo subirá instantaneamente ouvindo a porta `:8080`.
 
 Para mais detalhes sobre o projeto e sobre os motivos de termos preferido Go em vez de outras linguagens, acesse o documento abaixo:
 
-👉 **[Consulte o REPORT.md completo aqui](https://www.google.com/search?q=./REPORT.md)**
+👉 **[Consulte o REPORT.md completo aqui](./REPORT.md)**
